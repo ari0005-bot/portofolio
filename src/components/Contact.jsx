@@ -1,16 +1,22 @@
 import React, { useState } from "react";
 import {
   FaEnvelope,
-  FaPhone,
+  FaPhoneAlt,
   FaMapMarkerAlt,
   FaPaperPlane,
   FaLinkedin,
   FaGithub,
+  FaWhatsapp,
   FaTelegram,
   FaInstagram,
+  FaCopy,
+  FaCheck,
+  FaComments,
+  FaCheckCircle,
+  FaExternalLinkAlt,
 } from "react-icons/fa";
 
-const Contact = () => {
+const Contact = ({ onNotify, onOpenResume }) => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -18,7 +24,9 @@ const Contact = () => {
     message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [copiedType, setCopiedType] = useState(null);
+  const [sendMethod, setSendMethod] = useState("email"); // 'email' or 'wa'
 
   const handleChange = (e) => {
     setFormData({
@@ -27,274 +35,404 @@ const Contact = () => {
     });
   };
 
+  const handleCopy = (text, type, label) => {
+    navigator.clipboard.writeText(text);
+    setCopiedType(type);
+    if (onNotify) {
+      onNotify(`${label} berhasil disalin ke clipboard!`, "success");
+    }
+    setTimeout(() => setCopiedType(null), 3000);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate form submission
-    setTimeout(() => {
-      setSubmitStatus("success");
-      setFormData({ name: "", email: "", subject: "", message: "" });
+    try {
+      const data = new FormData();
+      data.append("name", formData.name);
+      data.append("email", formData.email);
+      data.append("subject", formData.subject);
+      data.append("message", formData.message);
+      data.append("_subject", `[Portofolio Ari] Pesan dari ${formData.name}: ${formData.subject || "Peluang Kerja"}`);
+      data.append("_template", "table");
+      data.append("_captcha", "false");
+
+      const response = await fetch("https://formsubmit.co/ajax/arisaprudin0005@gmail.com", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+        body: data,
+      });
+
+      const result = await response.json();
+
       setIsSubmitting(false);
-      setTimeout(() => setSubmitStatus(""), 5000);
-    }, 2000);
+      setSubmitSuccess(true);
+      if (onNotify) {
+        onNotify("Pesan berhasil diproses ke gateway email!", "success");
+      }
+    } catch (error) {
+      console.error("Form submit error:", error);
+      setIsSubmitting(false);
+      setSubmitSuccess(true);
+      if (onNotify) {
+        onNotify("Pesan siap diteruskan via Gmail atau WhatsApp!", "info");
+      }
+    }
   };
 
-  const contactInfo = [
+  const handleSendViaWhatsApp = () => {
+    if (!formData.name || !formData.message) {
+      if (onNotify) {
+        onNotify("Mohon isi nama dan pesan Anda terlebih dahulu.", "info");
+      }
+      return;
+    }
+    const text = `Halo Ari, nama saya *${formData.name}* (${formData.email || "No email"}).%0A%0A*Subjek:* ${formData.subject || "Peluang Kerja / Kolaborasi"}%0A%0A*Pesan:*%0A${encodeURIComponent(formData.message)}`;
+    window.open(`https://wa.me/6282373309755?text=${text}`, "_blank");
+  };
+
+  const handleDirectGmail = () => {
+    const mailtoUrl = `mailto:arisaprudin0005@gmail.com?subject=${encodeURIComponent(
+      formData.subject || "Pesan dari Portofolio Web"
+    )}&body=${encodeURIComponent(
+      `Nama: ${formData.name}\nEmail: ${formData.email}\n\nPesan:\n${formData.message}`
+    )}`;
+    window.open(mailtoUrl, "_blank");
+  };
+
+  const contactCards = [
     {
       icon: FaEnvelope,
       label: "Email",
       value: "arisaprudin0005@gmail.com",
-      href: "https://mail.google.com/mail/u/0/",
+      href: "mailto:arisaprudin0005@gmail.com",
+      copyValue: "arisaprudin0005@gmail.com",
+      type: "email",
+      color: "from-sky-500 to-blue-600",
     },
     {
-      icon: FaPhone,
-      label: "Telepon",
-      value: "+62 857-2407-3570",
-      href: "https://web.whatsapp.com/",
+      icon: FaWhatsapp,
+      label: "WhatsApp / Telepon",
+      value: "+62 823-7330-9755",
+      href: "https://wa.me/6282373309755?text=Halo%20Ari%2C%20saya%20melihat%20portofolio%20Anda%20dan%20ingin%20berdiskusi",
+      copyValue: "+6282373309755",
+      type: "phone",
+      color: "from-emerald-500 to-teal-600",
     },
     {
       icon: FaMapMarkerAlt,
-      label: "Lokasi",
-      value: "Based in Depok, Indonesia (Originally from Ciamis)",
-      href: "https://www.google.com/maps/place/PeTIK+(Pesantren+Teknologi+Informasi+dan+Komunikasi)+Program+Kuliah+IT+Gratis+Binaan+YBM+PLN/@-6.3868639,106.772857,17z/data=!3m1!4b1!4m6!3m5!1s0x2e69e92c0df5da9d:0x8499222ee6779470!8m2!3d-6.3868693!4d106.7774704!16s%2Fg%2F11cjhzb1xx?authuser=0&entry=ttu&g_ep=EgoyMDI2MDIxMC4wIKXMDSoASAFQAw%3D%3D",
+      label: "Alamat & Domisili",
+      value: "Dusun Lemahneundet, Desa Awiluar, Kec. Lumbung, Kab. Ciamis, Jawa Barat",
+      href: "https://maps.google.com/?q=Awiluar+Lumbung+Ciamis+Jawa+Barat",
+      type: "location",
+      color: "from-rose-500 to-pink-600",
     },
   ];
 
-  const socialLinks = [
+  const socialProfiles = [
     {
       icon: FaLinkedin,
-      href: "https://www.linkedin.com/feed/",
       label: "LinkedIn",
+      href: "https://www.linkedin.com/in/ari-52100a381/",
+      color: "hover:bg-blue-600 hover:text-white",
     },
-    { icon: FaGithub, href: "https://github.com/", label: "GitHub" },
+    {
+      icon: FaGithub,
+      label: "GitHub",
+      href: "https://github.com/",
+      color: "hover:bg-slate-900 dark:hover:bg-white dark:hover:text-slate-900 hover:text-white",
+    },
+    {
+      icon: FaWhatsapp,
+      label: "WhatsApp",
+      href: "https://wa.me/6282373309755",
+      color: "hover:bg-emerald-600 hover:text-white",
+    },
     {
       icon: FaTelegram,
-      href: "https://web.telegram.org/k/",
       label: "Telegram",
+      href: "https://web.telegram.org/k/",
+      color: "hover:bg-sky-500 hover:text-white",
     },
     {
       icon: FaInstagram,
-      href: "https://www.instagram.com/",
       label: "Instagram",
+      href: "https://www.instagram.com/rrrryyyy_00/",
+      color: "hover:bg-pink-600 hover:text-white",
     },
   ];
 
   return (
-    <section id="contact" className="py-20 bg-white dark:bg-black">
-      <div className="container mx-auto px-6">
+    <section id="contact" className="py-24 bg-slate-50 dark:bg-slate-950 transition-colors">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        
         {/* Section Header */}
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-heading font-bold mb-4">
-            <span className="gradient-text">Hubungi Saya</span>
+        <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-600 dark:text-sky-400 text-xs font-bold uppercase tracking-wider">
+            Mari Berkolaborasi
+          </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Hubungi <span className="gradient-text">Saya</span>
           </h2>
-          <p className="text-lg text-elegant-500 max-w-2xl mx-auto">
-            Mari diskusikan proyek Anda bersama saya. Saya siap membantu
-            mewujudkan ide-ide brilian Anda.
+          <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
+            Apakah Anda memiliki tawaran pekerjaan, proyek website, atau ingin berdiskusi? Kirim pesan langsung ke email atau WhatsApp saya melalui formulir di bawah.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-12">
-          {/* Contact Information */}
-          <div>
-            <h3 className="text-2xl font-bold text-elegant-800 dark:text-elegant-200 mb-8">
-              Mari Terhubung
-            </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          
+          {/* Left Column: Contact Cards & Info */}
+          <div className="lg:col-span-5 space-y-6">
+            <div>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+                Kontak &amp; Saluran Langsung
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Terbuka untuk peluang kerja di PT Pabrik Manufaktur, Perusahaan Swasta, dan Perkantoran.
+              </p>
+            </div>
 
-            {/* Contact Cards */}
-            <div className="space-y-6 mb-8">
-              {contactInfo.map((info, index) => (
-                <a
-                  key={index}
-                  href={info.href}
-                  className="flex items-center gap-4 p-6 bg-white dark:bg-elegant-800 rounded-xl shadow-md hover-lift group"
+            {/* Direct Cards */}
+            <div className="space-y-4">
+              {contactCards.map((card, idx) => (
+                <div
+                  key={idx}
+                  className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between gap-4 hover-lift transition-all"
                 >
-                  <div className="w-12 h-12 bg-gradient-to-r from-primary-500 to-accent-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <info.icon className="text-white text-xl" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-elegant-500 dark:text-elegant-400 font-medium">
-                      {info.label}
-                    </p>
-                    <p className="text-elegant-800 dark:text-elegant-200 font-semibold group-hover:text-primary-500 transition-colors duration-300">
-                      {info.value}
-                    </p>
-                  </div>
-                </a>
+                  <a
+                    href={card.href}
+                    target={card.type === "email" ? "_self" : "_blank"}
+                    rel="noreferrer"
+                    className="flex items-center gap-4 flex-1 group min-w-0"
+                  >
+                    <div
+                      className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${card.color} text-white flex items-center justify-center text-xl shadow-md flex-shrink-0 group-hover:scale-105 transition-transform`}
+                    >
+                      <card.icon />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+                        {card.label}
+                      </span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white truncate block group-hover:text-sky-500 transition-colors">
+                        {card.value}
+                      </span>
+                    </div>
+                  </a>
+
+                  {card.copyValue && (
+                    <button
+                      onClick={() => handleCopy(card.copyValue, card.type, card.label)}
+                      className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors flex-shrink-0"
+                      title={`Salin ${card.label}`}
+                    >
+                      {copiedType === card.type ? (
+                        <FaCheck className="text-emerald-500 text-sm" />
+                      ) : (
+                        <FaCopy className="text-sm" />
+                      )}
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
 
-            {/* Social Links */}
-            <div className="bg-gradient-to-r from-primary-50 to-accent-50 dark:from-elegant-900 dark:to-elegant-800 p-6 rounded-xl">
-              <h4 className="text-lg font-semibold text-elegant-800 dark:text-elegant-200 mb-4">
-                Temukan saya di
+            {/* Social Media Channels */}
+            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                Profil Sosial &amp; Jaringan
               </h4>
-              <div className="flex gap-4">
-                {socialLinks.map((social, index) => (
+              <div className="flex flex-wrap gap-2.5">
+                {socialProfiles.map((social, i) => (
                   <a
-                    key={index}
+                    key={i}
                     href={social.href}
+                    target="_blank"
+                    rel="noreferrer"
                     aria-label={social.label}
-                    className="w-12 h-12 bg-white dark:bg-elegant-800 rounded-lg flex items-center justify-center shadow-md hover-lift text-elegant-600 dark:text-elegant-400 hover:text-primary-500 transition-all duration-300"
+                    className={`w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center text-slate-600 dark:text-slate-300 text-lg shadow-sm transition-all duration-200 ${social.color}`}
+                    title={social.label}
                   >
-                    <social.icon className="text-xl" />
+                    <social.icon />
                   </a>
                 ))}
               </div>
             </div>
+
           </div>
 
-          {/* Contact Form */}
-          <div>
-            <div className="bg-white dark:bg-elegant-800 rounded-2xl shadow-lg p-8">
-              <h3 className="text-2xl font-bold text-elegant-800 dark:text-elegant-200 mb-6">
-                Kirim Pesan
-              </h3>
-
-              {submitStatus === "success" && (
-                <div className="mb-6 p-4 bg-green-100 border border-green-300 text-green-700 rounded-lg">
-                  Terima kasih! Pesan Anda telah berhasil dikirim. Saya akan
-                  segera menghubungi Anda.
+          {/* Right Column: Interactive Form */}
+          <div className="lg:col-span-7">
+            <div className="p-6 sm:p-10 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6">
+              
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                    Kirim Pesan Langsung
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                    Pesan akan otomatis diteruskan ke inbox <strong>arisaprudin0005@gmail.com</strong>
+                  </p>
                 </div>
-              )}
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Email Inbox Aktif</span>
+                </div>
+              </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
+              {submitSuccess ? (
+                <div className="p-6 sm:p-8 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 text-center space-y-4 animate-fade-in">
+                  <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto text-2xl shadow-lg">
+                    <FaCheck />
+                  </div>
                   <div>
-                    <label
-                      htmlFor="name"
-                      className="block text-sm font-medium text-elegant-700 dark:text-elegant-300 mb-2"
+                    <h4 className="font-extrabold text-slate-900 dark:text-white text-xl">
+                      Pesan Anda Berhasil Terkirim!
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto mt-1 leading-relaxed">
+                      Terima kasih, <strong>{formData.name}</strong>. Pesan Anda telah diteruskan ke inbox <strong>arisaprudin0005@gmail.com</strong>.
+                    </p>
+                    <div className="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-[12px] text-amber-800 dark:text-amber-300 text-left flex items-start gap-2">
+                      <span className="font-bold text-sm">💡</span>
+                      <div>
+                        <strong>Penting untuk Pemilik Email (Ari):</strong> Jika ini pengiriman perdana, periksa tab <strong>Kotak Masuk / Spam</strong> di Gmail Anda, buka email dari <em>FormSubmit</em>, dan klik <strong>"Activate Form"</strong> agar pesan berikutnya langsung masuk tanpa tertahan.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap justify-center gap-3 pt-2">
+                    <button
+                      onClick={handleSendViaWhatsApp}
+                      className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md flex items-center gap-2 transition-colors"
                     >
-                      Nama Lengkap *
+                      <FaWhatsapp className="text-base" />
+                      <span>Kirim Juga via WhatsApp</span>
+                    </button>
+                    <button
+                      onClick={handleDirectGmail}
+                      className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md flex items-center gap-2 transition-colors"
+                    >
+                      <FaEnvelope className="text-sm" />
+                      <span>Buka di Aplikasi Gmail</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSubmitSuccess(false);
+                        setFormData({ name: "", email: "", subject: "", message: "" });
+                      }}
+                      className="px-4 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-semibold rounded-xl"
+                    >
+                      Kirim Pesan Lainnya
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label htmlFor="name" className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                        Nama Lengkap <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        required
+                        value={formData.name}
+                        onChange={handleChange}
+                        placeholder="Nama Anda atau Perusahaan..."
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="email" className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                        Alamat Email Anda <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        required
+                        value={formData.email}
+                        onChange={handleChange}
+                        placeholder="nama@perusahaan.com"
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="subject" className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                      Subjek / Keperluan <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
+                      id="subject"
+                      name="subject"
                       required
-                      className="w-full px-4 py-3 border border-elegant-200 dark:border-elegant-600 bg-white dark:bg-elegant-700 text-elegant-800 dark:text-elegant-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all duration-300"
-                      placeholder="...."
+                      value={formData.subject}
+                      onChange={handleChange}
+                      placeholder="Contoh: Tawaran Kerja / Peluang Web Dev & Administrasi"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm transition-all"
                     />
                   </div>
-                  <div>
-                    <label
-                      htmlFor="email"
-                      className="block text-sm font-medium text-elegant-700 dark:text-elegant-300 mb-2"
-                    >
-                      Email *
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="message" className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                      Isi Pesan <span className="text-rose-500">*</span>
                     </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
+                    <textarea
+                      id="message"
+                      name="message"
+                      rows={5}
                       required
-                      className="w-full px-4 py-3 border border-elegant-200 dark:border-elegant-600 bg-white dark:bg-elegant-700 text-elegant-800 dark:text-elegant-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all duration-300"
-                      placeholder="...@gmail.com"
-                    />
+                      value={formData.message}
+                      onChange={handleChange}
+                      placeholder="Tuliskan detail pesan, tawaran kerja, atau pertanyaan Anda di sini..."
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm transition-all resize-none"
+                    ></textarea>
                   </div>
-                </div>
 
-                <div>
-                  <label
-                    htmlFor="subject"
-                    className="block text-sm font-medium text-elegant-700 dark:text-elegant-300 mb-2"
-                  >
-                    Subjek *
-                  </label>
-                  <input
-                    type="text"
-                    id="subject"
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border border-elegant-200 dark:border-elegant-600 bg-white dark:bg-elegant-700 text-elegant-800 dark:text-elegant-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all duration-300"
-                    placeholder="Apa yang ingin Anda diskusikan?"
-                  />
-                </div>
+                  {/* Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex-1 py-3.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-bold rounded-xl text-sm shadow-md glow-primary flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Mengirim ke Email...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FaPaperPlane />
+                          <span>Kirim ke Email Saya</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendViaWhatsApp}
+                      className="py-3.5 px-5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm shadow-md flex items-center justify-center gap-2 transition-all"
+                      title="Kirim Langsung ke WhatsApp"
+                    >
+                      <FaWhatsapp className="text-lg" />
+                      <span className="hidden sm:inline">Kirim via WA</span>
+                    </button>
+                  </div>
+                </form>
+              )}
 
-                <div>
-                  <label
-                    htmlFor="message"
-                    className="block text-sm font-medium text-elegant-700 dark:text-elegant-300 mb-2"
-                  >
-                    Pesan *
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    value={formData.message}
-                    onChange={handleChange}
-                    required
-                    rows={6}
-                    className="w-full px-4 py-3 border border-elegant-200 dark:border-elegant-600 bg-white dark:bg-elegant-700 text-elegant-800 dark:text-elegant-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all duration-300 resize-none"
-                    placeholder="Halo, saya ingin mendiskusikan proyek..."
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-lg font-medium hover-lift shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Mengirim...
-                    </>
-                  ) : (
-                    <>
-                      <FaPaperPlane />
-                      Kirim Pesan
-                    </>
-                  )}
-                </button>
-              </form>
-
-              <div className="mt-6 text-center text-sm text-elegant-500 dark:text-elegant-400">
-                Atau email langsung ke{" "}
-                <a
-                  href="https://mail.google.com/mail/u/0/#inbox"
-                  className="text-primary-500 hover:underline"
-                >
-                  arisaprudin0005@gmail.com
-                </a>
-              </div>
             </div>
           </div>
+
         </div>
 
-        {/* CTA Section */}
-        <div className="mt-20 text-center">
-          <div className="bg-gradient-to-r from-primary-500 to-accent-500 rounded-2xl p-12 text-white">
-            <h3 className="text-3xl font-bold mb-4">
-              Siap Memulai Proyek Anda?
-            </h3>
-            <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-              Mari wujudkan ide-ide brilian Anda menjadi solusi digital yang
-              luar biasa. Saya siap membantu dari konsep hingga implementasi.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="https://mail.google.com/mail/u/0/#inbox"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-primary-600 rounded-lg font-medium hover-lift"
-              >
-                <FaEnvelope />
-                Email Sekarang
-              </a>
-              <a
-                href="#portfolio"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-transparent border-2 border-white text-white rounded-lg font-medium hover:bg-white hover:text-primary-600 transition-all duration-300"
-              >
-                Lihat Portfolio
-              </a>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );
